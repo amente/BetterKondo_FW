@@ -1,8 +1,59 @@
 #include "CU_TM4C123.h"
 #include "servos.h"
 
+volatile uint32_t* ch_duty[16];
+uint16_t home_pos[16] = {CH1_HOME,CH2_HOME,CH3_HOME,CH4_HOME,
+                         CH5_HOME,CH6_HOME,CH7_HOME,CH8_HOME,
+                         CH9_HOME,CH10_HOME,CH11_HOME,CH12_HOME,
+                         CH13_HOME,CH14_HOME,CH15_HOME,CH16_HOME};
+
+
+void servos_enable(uint8_t channel){
+    if(channel == 1 || channel == 2){
+        PWM1->ENABLE |= 1<<(channel-1);
+    }else if(channel == 9 || channel == 10){
+        PWM0->ENABLE |= 1<<((channel-1)%8);
+    }else if(channel<=8){
+        PWM0->ENABLE |= 1<<((channel-1)%8);
+    }else{
+        PWM1->ENABLE |= 1<<((channel-1)%8);
+    }        
+}
+
+void servos_disable(uint8_t channel){
+    if(channel == 1 || channel == 2){
+        PWM1->ENABLE &= ~(1<<(channel-1));
+    }else if(channel == 9 || channel == 10){
+        PWM0->ENABLE &= ~(1<<((channel-1)%8));
+    }else if(channel<=8){
+        PWM0->ENABLE &= ~(1<<((channel-1)%8));
+    }else{
+        PWM1->ENABLE &= ~(1<<((channel-1)%8));
+    }        
+}
+
+
 void servos_init(){
+    int i;
     uint32_t pwm_period;
+    
+    ch_duty[0] = &(PWM1->_0_CMPA);
+    ch_duty[1] = &(PWM1->_0_CMPB);
+    ch_duty[2] = &(PWM0->_1_CMPA);
+    ch_duty[3] = &(PWM0->_1_CMPB);
+    ch_duty[4] = &(PWM0->_2_CMPA);
+    ch_duty[5] = &(PWM0->_2_CMPB);
+    ch_duty[6] = &(PWM0->_3_CMPA);
+    ch_duty[7] = &(PWM0->_3_CMPB);
+    ch_duty[8] = &(PWM0->_0_CMPA);
+    ch_duty[9] = &(PWM0->_0_CMPB);
+    ch_duty[10] = &(PWM1->_1_CMPA);
+    ch_duty[11] = &(PWM1->_1_CMPB);
+    ch_duty[12] = &(PWM1->_2_CMPA);
+    ch_duty[13] = &(PWM1->_2_CMPB);
+    ch_duty[14] = &(PWM1->_3_CMPA);
+    ch_duty[15] = &(PWM1->_3_CMPB);
+    
     
     //Enable clock to both PWM Modules
     SYSCTL->RCGCPWM |= 1<<0 | 1<<1; 
@@ -32,39 +83,53 @@ void servos_init(){
     GPIOE->AFSEL |= 1<<4|1<<5;
     GPIOE->PCTL |=  4<<(4*4)|4<<(4*5);
     GPIOE->DEN |= 1<<4|1<<5;
+    
     //PORT F pins, PF0,PF1,PF2,PF3
+    GPIOF->LOCK = 0x4C4F434B;  // UNLOCK PF0! 
+    //lol v
+    *(uint32_t*)&GPIOF->CR |= 1<<0;  // COMMIT!
     GPIOF->AFSEL |= 1<<0|1<<1|1<<2|1<<3;
     GPIOF->PCTL |= 5<<(4*0)|5<<(4*1)|5<<(4*2)|5<<(4*3);
     GPIOF->DEN |= 1<<0|1<<1|1<<2|1<<3;
+     GPIOF->LOCK = 0x4C4F434B;  // UNLOCK!  
+    *(uint32_t*)&GPIOF->CR &= ~(1<<0);  // UNCOMMIT!
     
     //Configure PWM Generators
     pwm_period = ((SystemCoreClock>>
     6) / PWM_FREQ) - 1;
     //PWM0
     PWM0->_0_CTL = 0;
-    PWM0->_0_GENA = PWM_GEN_MODE; 
+    PWM0->_0_GENA = PWM_GEN_MODE_A;
+    PWM0->_0_GENB = PWM_GEN_MODE_B;
     PWM0->_0_CTL = 1<<0;
     PWM0->_1_CTL = 0;
-    PWM0->_1_GENA = PWM_GEN_MODE; 
+    PWM0->_1_GENA = PWM_GEN_MODE_A;
+    PWM0->_1_GENB = PWM_GEN_MODE_B;
     PWM0->_1_CTL = 1<<0;
     PWM0->_2_CTL = 0;
-    PWM0->_2_GENA = PWM_GEN_MODE; 
+    PWM0->_2_GENA = PWM_GEN_MODE_A; 
+    PWM0->_2_GENB = PWM_GEN_MODE_B;
     PWM0->_2_CTL = 1<<0;
     PWM0->_3_CTL = 0;
-    PWM0->_3_GENA = PWM_GEN_MODE; 
+    PWM0->_3_GENA = PWM_GEN_MODE_A;
+    PWM0->_3_GENB = PWM_GEN_MODE_B;
     PWM0->_3_CTL = 1<<0;
     //PWM1
     PWM1->_0_CTL = 0;
-    PWM1->_0_GENA = PWM_GEN_MODE; 
+    PWM1->_0_GENA = PWM_GEN_MODE_A; 
+    PWM1->_0_GENB = PWM_GEN_MODE_B; 
     PWM1->_0_CTL = 1<<0;
     PWM1->_1_CTL = 0;
-    PWM1->_1_GENA = PWM_GEN_MODE; 
+    PWM1->_1_GENA = PWM_GEN_MODE_A; 
+    PWM1->_1_GENB = PWM_GEN_MODE_B;
     PWM1->_1_CTL = 1<<0;
     PWM1->_2_CTL = 0;
-    PWM1->_2_GENA = PWM_GEN_MODE; 
+    PWM1->_2_GENA = PWM_GEN_MODE_A; 
+    PWM1->_2_GENB = PWM_GEN_MODE_B;
     PWM1->_2_CTL = 1<<0;
     PWM1->_3_CTL = 0;
-    PWM1->_3_GENA = PWM_GEN_MODE; 
+    PWM1->_3_GENA = PWM_GEN_MODE_A; 
+    PWM1->_3_GENB = PWM_GEN_MODE_B;
     PWM1->_3_CTL = 1<<0;
     
     //Set PWM Period
@@ -75,22 +140,27 @@ void servos_init(){
     PWM1->_0_LOAD = pwm_period;
     PWM1->_1_LOAD = pwm_period;
     PWM1->_2_LOAD = pwm_period;
-    PWM1->_3_LOAD = pwm_period;
+    PWM1->_3_LOAD = pwm_period;   
     
-    //Set duty cycle
-    PWM0->_0_CMPA = pwm_period>>1;
-    PWM0->_1_CMPA = pwm_period>>1;
-    PWM0->_2_CMPA = pwm_period>>1;
-    PWM0->_3_CMPA = pwm_period>>1;
-    PWM1->_0_CMPA = pwm_period>>1;
-    PWM1->_1_CMPA = pwm_period>>1;
-    PWM1->_2_CMPA = pwm_period>>1;
-    PWM1->_3_CMPA = pwm_period>>1;
-     
-    //Enable all PWM channels
-    PWM0->ENABLE |= 0xFF;
-    PWM1->ENABLE |= 0xFF;    
+     for(i=1;i<=16;i++){       
+       servos_enable(i);
+    }   
     
+}
+
+void servos_doPosDegree(uint8_t posDegree[16]){
+    int i;
+    for(i=1;i<=16;i++){       
+       servos_setDegree(i,(float)posDegree[i-1]);
+    }     
+}
+
+void servos_setPos(uint8_t channel,uint16_t value){
+    *ch_duty[channel-1] = value;
+}
+
+void servos_setDegree(uint8_t channel,float value){
+    servos_setPos(channel,SERVO_MIN_POS+ (value/180)*(SERVO_MAX_POS-SERVO_MIN_POS));
 }
 
 
