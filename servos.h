@@ -17,23 +17,6 @@
 #define PWM_GEN_MODE_B 0xC08
 #define PWM_FREQ 50
 
-#define CH1_HOME    375
-#define CH2_HOME    560
-#define CH3_HOME    575
-#define CH4_HOME    375
-#define CH5_HOME    375
-#define CH6_HOME    375
-#define CH7_HOME    375
-#define CH8_HOME    375
-#define CH9_HOME    375
-#define CH10_HOME    375
-#define CH11_HOME    500
-#define CH12_HOME    375
-#define CH13_HOME    375
-#define CH14_HOME    190
-#define CH15_HOME    390
-#define CH16_HOME    375
-
 void servos_init(void);
 void servos_doPosDegree(uint8_t posDegree[16]);
 void servos_enable(uint8_t channel);

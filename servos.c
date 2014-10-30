@@ -1,12 +1,9 @@
 #include "CU_TM4C123.h"
 #include "servos.h"
 
-volatile uint32_t* ch_duty[16];
-uint16_t home_pos[16] = {CH1_HOME,CH2_HOME,CH3_HOME,CH4_HOME,
-                         CH5_HOME,CH6_HOME,CH7_HOME,CH8_HOME,
-                         CH9_HOME,CH10_HOME,CH11_HOME,CH12_HOME,
-                         CH13_HOME,CH14_HOME,CH15_HOME,CH16_HOME};
+uint8_t cur_pos[16];
 
+volatile uint32_t* ch_duty[16];
 
 void servos_enable(uint8_t channel){
     if(channel == 1 || channel == 2){
@@ -58,6 +55,7 @@ void servos_init(){
     //Enable clock to both PWM Modules
     SYSCTL->RCGCPWM |= 1<<0 | 1<<1; 
     SYSCTL->RCC |= (1<<20) | (0x7<<17); // PWM clock is SycClk / 64
+    SYSCTL->RCGCTIMER |= 1<<2;
     
     //Enable clock to GPIO PORTs A,B,C,D,E,F
     SYSCTL->RCGCGPIO |= 1<<0|1<<1|1<<2|1<<3|1<<4|1<<5;
@@ -71,6 +69,11 @@ void servos_init(){
     GPIOB->AFSEL |= 1<<6 |1<<7|1<<4|1<<5;
     GPIOB->PCTL |= 4<<(4*6)|4<<(4*7)|4<<(4*4)|4<<(4*5);
     GPIOB->DEN |= 1<<6 |1<<7|1<<4|1<<5;
+        //Extra pin
+    GPIOB->AFSEL|= 1<<0;
+    GPIOB->PCTL |= 7<<(4*0);
+    GPIOB->DEN |= 1<<0;
+    
     //PORT C pins, PC4,PC5,
     GPIOC->AFSEL |= 1<<4|1<<5;
     GPIOC->PCTL |= 4<<(4*4)|4<<(4*5);
@@ -93,6 +96,18 @@ void servos_init(){
     GPIOF->DEN |= 1<<0|1<<1|1<<2|1<<3;
      GPIOF->LOCK = 0x4C4F434B;  // UNLOCK!  
     *(uint32_t*)&GPIOF->CR &= ~(1<<0);  // UNCOMMIT!
+    
+    //Configure timer for PWM
+    TIMER2->CFG |= 4<<0;
+    //nAMS bit to 0x1, the TnCMR bit to
+    //0x0, and the TnMR field to 0x2.
+    TIMER2->TAMR |= 1<<3 | 2<<0;
+    TIMER2->TAPR = 4;
+    TIMER2->TAILR = 0xE200;
+
+    TIMER2->TAMATCHR = 12800;
+    
+    TIMER2->CTL |= 1<<0;
     
     //Configure PWM Generators
     pwm_period = ((SystemCoreClock>>
@@ -156,11 +171,12 @@ void servos_doPosDegree(uint8_t posDegree[16]){
 }
 
 void servos_setPos(uint8_t channel,uint16_t value){
-    *ch_duty[channel-1] = value;
+    *ch_duty[channel-1] = value;   
 }
 
 void servos_setDegree(uint8_t channel,float value){
     servos_setPos(channel,SERVO_MIN_POS+ (value/180)*(SERVO_MAX_POS-SERVO_MIN_POS));
+    cur_pos[channel-1] = value;
 }
 
 

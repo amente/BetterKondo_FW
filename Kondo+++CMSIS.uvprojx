@@ -423,6 +423,26 @@
               <FileType>1</FileType>
               <FilePath>.\servos.c</FilePath>
             </File>
+            <File>
+              <FileName>halfduplex_serial.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\halfduplex_serial.c</FilePath>
+            </File>
+            <File>
+              <FileName>rt_uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\rt_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>util.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\util.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
