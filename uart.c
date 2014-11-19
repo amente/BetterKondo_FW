@@ -41,6 +41,34 @@ int uart_init(UART0_Type *uart, uint32_t baud)
         // enable the interrupt from the NVIC
         NVIC_EnableIRQ(UART0_IRQn);
     }
+    else if (uart == UART2)
+    {
+        // UART2_RX = PD6
+        // UART2_TX = PD7 (requires unlock)
+
+        // enable clock to Port D
+        SYSCTL->RCGCGPIO |= SYSCTL_RCGCGPIO_R3;
+        // enable clock to UART2
+        SYSCTL->RCGCUART |= SYSCTL_RCGCUART_R2;
+
+        // unlock GPIOF so we can config PD7
+        GPIOD->LOCK = GPIO_LOCK_KEY;
+        // enable commit to PD7
+        *(volatile uint32_t *)&GPIOD->CR |= 1<<7;
+        // select the alternate function for PD6 & PD7
+        GPIOD->AFSEL |= (1<<6) | (1<<7);
+        // configure the pins to be U2RX & U2TX
+        GPIOD->PCTL |= GPIO_PCTL_PD6_U2RX | GPIO_PCTL_PD7_U2TX;
+        // enable the digital pad for PD6 & PD7
+        GPIOD->DEN |= (1<<6) | (1<<7);
+        // disable commit to PD7
+        *(volatile uint32_t *)&GPIOD->CR |= 1<<7;
+        // lock GPIOF
+        GPIOD->LOCK = 0;
+
+        // enable the interrupt from the NVIC
+        NVIC_EnableIRQ(UART2_IRQn);
+    }
     else if (uart == UART5)
     {
         // UART5_RX = PE4
