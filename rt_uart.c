@@ -3,12 +3,12 @@
 
 #pragma import(__use_no_semihosting_swi)
 
-struct __FILE { int handle; /* Add whatever you need here */ };
-FILE __stdout;
-FILE __stdin;
+struct __FILE { UART0_Type *uart; };
+FILE __stdout = { UART0 };
+FILE __stdin = { UART0 };
 
 int fputc(int ch, FILE *f) {
-  return (uart_sendbyte(ch));
+  return (uart_sendbyte(f->uart, ch));
 }
 
 int ferror(FILE *f) {
