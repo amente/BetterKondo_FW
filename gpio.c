@@ -88,7 +88,12 @@ GPIO_PIN* get_interupt_pin(uint8_t port_id){
 }
 
 void gpio_init(void){
-    SYSCTL->RCGCGPIO |= 0xFF;
+    SYSCTL->RCGCGPIO |= SYSCTL_RCGCGPIO_R0  |
+                        SYSCTL_RCGCGPIO_R1  |
+                        SYSCTL_RCGCGPIO_R2  |
+                        SYSCTL_RCGCGPIO_R3  |
+                        SYSCTL_RCGCGPIO_R4  |
+                        SYSCTL_RCGCGPIO_R5  ;
     GPIO_PINS[3][0].pin_num = 0;
     GPIO_PINS[3][0].port = GPIOD;  
     GPIO_PINS[3][0].IRQn = GPIOD_IRQn;

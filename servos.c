@@ -1,9 +1,29 @@
-#include "CU_TM4C123.h"
+#include "CU_TM4C123.h"            // CU_SYSC4906::Device:Startup
+
+#include "gpio.h"
 #include "servos.h"
 
 uint8_t cur_pos[16];
 
-volatile uint32_t* ch_duty[16];
+static volatile uint32_t *ch_duty[16] =
+{
+    &(PWM1->_0_CMPA),
+    &(PWM1->_0_CMPB),
+    &(PWM0->_1_CMPA),
+    &(PWM0->_1_CMPB),
+    &(PWM0->_2_CMPA),
+    &(PWM0->_2_CMPB),
+    &(PWM0->_3_CMPA),
+    &(PWM0->_3_CMPB),
+    &(PWM0->_0_CMPA),
+    &(PWM0->_0_CMPB),
+    &(PWM1->_1_CMPA),
+    &(PWM1->_1_CMPB),
+    &(PWM1->_2_CMPA),
+    &(PWM1->_2_CMPB),
+    &(PWM1->_3_CMPA),
+    &(PWM1->_3_CMPB),
+};
 
 void servos_enable(uint8_t channel){
     if(channel == 1 || channel == 2){
@@ -29,123 +49,115 @@ void servos_disable(uint8_t channel){
     }        
 }
 
-
 void servos_init(){
-    int i;
     uint32_t pwm_period;
     
-    ch_duty[0] = &(PWM1->_0_CMPA);
-    ch_duty[1] = &(PWM1->_0_CMPB);
-    ch_duty[2] = &(PWM0->_1_CMPA);
-    ch_duty[3] = &(PWM0->_1_CMPB);
-    ch_duty[4] = &(PWM0->_2_CMPA);
-    ch_duty[5] = &(PWM0->_2_CMPB);
-    ch_duty[6] = &(PWM0->_3_CMPA);
-    ch_duty[7] = &(PWM0->_3_CMPB);
-    ch_duty[8] = &(PWM0->_0_CMPA);
-    ch_duty[9] = &(PWM0->_0_CMPB);
-    ch_duty[10] = &(PWM1->_1_CMPA);
-    ch_duty[11] = &(PWM1->_1_CMPB);
-    ch_duty[12] = &(PWM1->_2_CMPA);
-    ch_duty[13] = &(PWM1->_2_CMPB);
-    ch_duty[14] = &(PWM1->_3_CMPA);
-    ch_duty[15] = &(PWM1->_3_CMPB);
+    // init GPIOs
+    gpio_init();
     
+    // Enable clock to both PWM Modules
+    SYSCTL->RCGCPWM |= SYSCTL_RCGCPWM_R0 | SYSCTL_RCGCPWM_R0;
+    // PWM clock is SycClk / 64
+    SYSCTL->RCC |= SYSCTL_RCC_USEPWMDIV | SYSCTL_RCC_PWMDIV_64;
+    // Enable clock to Timer 2
+    SYSCTL->RCGCTIMER |= SYSCTL_RCGCTIMER_R2;
     
-    //Enable clock to both PWM Modules
-    SYSCTL->RCGCPWM |= 1<<0 | 1<<1; 
-    SYSCTL->RCC |= (1<<20) | (0x7<<17); // PWM clock is SycClk / 64
-    SYSCTL->RCGCTIMER |= 1<<2;
-    
-    //Enable clock to GPIO PORTs A,B,C,D,E,F
-    SYSCTL->RCGCGPIO |= 1<<0|1<<1|1<<2|1<<3|1<<4|1<<5;
-    
-    //Configure alternate functions for PWM pins
-    //PORT A pins, PA6 and PA7
+    // Configure alternate functions for PWM pins
+    // PORT A pins: PA6 and PA7
     GPIOA->AFSEL |= 1<<6 | 1<<7;
-    GPIOA->PCTL |= 5<<(4*6) | 5<<(4*7);
-    GPIOA->DEN |= 1<<6 | 1<<7;
-    //PORT B pins, PB6,PB7,PB4,PB5
-    GPIOB->AFSEL |= 1<<6 |1<<7|1<<4|1<<5;
-    GPIOB->PCTL |= 4<<(4*6)|4<<(4*7)|4<<(4*4)|4<<(4*5);
-    GPIOB->DEN |= 1<<6 |1<<7|1<<4|1<<5;
-        //Extra pin
-    GPIOB->AFSEL|= 1<<0;
-    GPIOB->PCTL |= 7<<(4*0);
-    GPIOB->DEN |= 1<<0;
+    GPIOA->PCTL  |= GPIO_PCTL_PA6_M1PWM2 | GPIO_PCTL_PA6_M1PWM2;
+    GPIOA->DEN   |= 1<<6 | 1<<7;
+    // PORT B pins: PB0, PB4, PB5, PB6, PB7
+    GPIOB->AFSEL |= 1<<0 | 1<<4 | 1<<5 | 1<<6 | 1<<7;
+    GPIOB->PCTL  |= GPIO_PCTL_PB0_T2CCP0 |
+                    GPIO_PCTL_PB4_M0PWM2 |
+                    GPIO_PCTL_PB5_M0PWM3 |
+                    GPIO_PCTL_PB6_M0PWM0 |
+                    GPIO_PCTL_PB7_M0PWM1 ;
+    GPIOB->DEN   |= 1<<0 | 1<<4 | 1<<5 | 1<<6 | 1<<7;
+    // PORT C pins: PC4, PC5,
+    GPIOC->AFSEL |= 1<<4 | 1<<5;
+    GPIOC->PCTL  |= GPIO_PCTL_PC4_M0PWM6 | GPIO_PCTL_PC5_M0PWM7;
+    GPIOC->DEN   |= 1<<4 | 1<<5;
+    // PORT D pins: PD0, PD1
+    GPIOD->AFSEL |= 1<<0 | 1<<1;
+    GPIOD->PCTL  |= GPIO_PCTL_PD0_M1PWM0 | GPIO_PCTL_PD1_M1PWM1;
+    GPIOD->DEN   |= 1<<0 | 1<<1;
+    // PORT E pins: PE4, PE5
+    GPIOE->AFSEL |= 1<<4 | 1<<5;
+    GPIOE->PCTL  |=  GPIO_PCTL_PE4_M0PWM4 | GPIO_PCTL_PE5_M0PWM5;
+    GPIOE->DEN   |= 1<<4 | 1<<5;
+    // PORT F pins: PF0, PF1, PF2, PF3
+    // unlock GPIOF so we can config PF0
+    GPIOF->LOCK   = GPIO_LOCK_KEY;    // UNLOCK
+    *(volatile uint32_t *)&GPIOF->CR |= 1<<0;
+    GPIOF->AFSEL |= 1<<0 | 1<<1 | 1<<2 | 1<<3;
+    GPIOF->PCTL  |= GPIO_PCTL_PF0_M1PWM4 |
+                    GPIO_PCTL_PF1_M1PWM5 |
+                    GPIO_PCTL_PF2_M1PWM6 |
+                    GPIO_PCTL_PF3_M1PWM7 ;
+    GPIOF->DEN   |= 1<<0 | 1<<1 | 1<<2 | 1<<3;
+    *(volatile uint32_t *)&GPIOF->CR |= 1<<0;
+    GPIOF->LOCK   = 0;                // LOCL
     
-    //PORT C pins, PC4,PC5,
-    GPIOC->AFSEL |= 1<<4|1<<5;
-    GPIOC->PCTL |= 4<<(4*4)|4<<(4*5);
-    GPIOC->DEN |= 1<<4|1<<5;
-    //PORT D pins, PD0,PD1
-    GPIOD->AFSEL |= 1<<0|1<<1;
-    GPIOD->PCTL |= 5<<(4*0)|5<<(4*1);
-    GPIOD->DEN |= 1<<0|1<<1;
-    //PORT E pins, PE4,PE5
-    GPIOE->AFSEL |= 1<<4|1<<5;
-    GPIOE->PCTL |=  4<<(4*4)|4<<(4*5);
-    GPIOE->DEN |= 1<<4|1<<5;
-    
-    //PORT F pins, PF0,PF1,PF2,PF3
-    GPIOF->LOCK = 0x4C4F434B;  // UNLOCK PF0! 
-    //lol v
-    *(uint32_t*)&GPIOF->CR |= 1<<0;  // COMMIT!
-    GPIOF->AFSEL |= 1<<0|1<<1|1<<2|1<<3;
-    GPIOF->PCTL |= 5<<(4*0)|5<<(4*1)|5<<(4*2)|5<<(4*3);
-    GPIOF->DEN |= 1<<0|1<<1|1<<2|1<<3;
-     GPIOF->LOCK = 0x4C4F434B;  // UNLOCK!  
-    *(uint32_t*)&GPIOF->CR &= ~(1<<0);  // UNCOMMIT!
-    
-    //Configure timer for PWM
-    TIMER2->CFG |= 4<<0;
-    //nAMS bit to 0x1, the TnCMR bit to
-    //0x0, and the TnMR field to 0x2.
-    TIMER2->TAMR |= 1<<3 | 2<<0;
+    // Configure Timer 2 for PWM
+    // stop the timer
+    TIMER2->CTL &= ~TIMER_CTL_TAEN;
+    // select 16 bit mode (PWM)
+    TIMER2->CFG |= TIMER_CFG_16_BIT;
+    /*
+        Set the TnAMS bit to 0x1,
+                TnCMR bit to 0x0,
+                TnMR field to 0x2. (p716)
+    */
+    TIMER2->TAMR = (TIMER2->TAMR & ~TIMER_TAMR_TACMR) |
+                                    TIMER_TAMR_TAAMS  |
+                                    TIMER_TAMR_TAMR_PERIOD;
+    //
     TIMER2->TAPR = 4;
+    //
     TIMER2->TAILR = 0xE200;
-
+    //
     TIMER2->TAMATCHR = 12800;
-    
+    //
     TIMER2->CTL |= 1<<0;
     
     //Configure PWM Generators
-    pwm_period = ((SystemCoreClock>>
-    6) / PWM_FREQ) - 1;
+    pwm_period = (SystemCoreClock / 64 / PWM_FREQ) - 1;
     //PWM0
-    PWM0->_0_CTL = 0;
+    PWM0->_0_CTL &= ~PWM_0_CTL_ENABLE;
     PWM0->_0_GENA = PWM_GEN_MODE_A;
     PWM0->_0_GENB = PWM_GEN_MODE_B;
-    PWM0->_0_CTL = 1<<0;
-    PWM0->_1_CTL = 0;
+    PWM0->_0_CTL |= PWM_0_CTL_ENABLE;
+    PWM0->_1_CTL &= ~PWM_1_CTL_ENABLE;
     PWM0->_1_GENA = PWM_GEN_MODE_A;
     PWM0->_1_GENB = PWM_GEN_MODE_B;
-    PWM0->_1_CTL = 1<<0;
-    PWM0->_2_CTL = 0;
+    PWM0->_1_CTL |= PWM_1_CTL_ENABLE;
+    PWM0->_2_CTL &= ~PWM_2_CTL_ENABLE;
     PWM0->_2_GENA = PWM_GEN_MODE_A; 
     PWM0->_2_GENB = PWM_GEN_MODE_B;
-    PWM0->_2_CTL = 1<<0;
-    PWM0->_3_CTL = 0;
+    PWM0->_2_CTL |= PWM_2_CTL_ENABLE;
+    PWM0->_3_CTL &= ~PWM_3_CTL_ENABLE;
     PWM0->_3_GENA = PWM_GEN_MODE_A;
     PWM0->_3_GENB = PWM_GEN_MODE_B;
-    PWM0->_3_CTL = 1<<0;
+    PWM0->_3_CTL |= PWM_3_CTL_ENABLE;
     //PWM1
-    PWM1->_0_CTL = 0;
-    PWM1->_0_GENA = PWM_GEN_MODE_A; 
-    PWM1->_0_GENB = PWM_GEN_MODE_B; 
-    PWM1->_0_CTL = 1<<0;
-    PWM1->_1_CTL = 0;
-    PWM1->_1_GENA = PWM_GEN_MODE_A; 
+    PWM1->_0_CTL &= ~PWM_0_CTL_ENABLE;
+    PWM1->_0_GENA = PWM_GEN_MODE_A;
+    PWM1->_0_GENB = PWM_GEN_MODE_B;
+    PWM1->_0_CTL |= PWM_0_CTL_ENABLE;
+    PWM1->_1_CTL &= ~PWM_1_CTL_ENABLE;
+    PWM1->_1_GENA = PWM_GEN_MODE_A;
     PWM1->_1_GENB = PWM_GEN_MODE_B;
-    PWM1->_1_CTL = 1<<0;
-    PWM1->_2_CTL = 0;
+    PWM1->_1_CTL |= PWM_1_CTL_ENABLE;
+    PWM1->_2_CTL &= ~PWM_2_CTL_ENABLE;
     PWM1->_2_GENA = PWM_GEN_MODE_A; 
     PWM1->_2_GENB = PWM_GEN_MODE_B;
-    PWM1->_2_CTL = 1<<0;
-    PWM1->_3_CTL = 0;
-    PWM1->_3_GENA = PWM_GEN_MODE_A; 
+    PWM1->_2_CTL |= PWM_2_CTL_ENABLE;
+    PWM1->_3_CTL &= ~PWM_3_CTL_ENABLE;
+    PWM1->_3_GENA = PWM_GEN_MODE_A;
     PWM1->_3_GENB = PWM_GEN_MODE_B;
-    PWM1->_3_CTL = 1<<0;
+    PWM1->_3_CTL |= PWM_3_CTL_ENABLE;
     
     //Set PWM Period
     PWM0->_0_LOAD = pwm_period;
@@ -155,12 +167,27 @@ void servos_init(){
     PWM1->_0_LOAD = pwm_period;
     PWM1->_1_LOAD = pwm_period;
     PWM1->_2_LOAD = pwm_period;
-    PWM1->_3_LOAD = pwm_period;   
-    
-     for(i=1;i<=16;i++){       
-       servos_enable(i);
-    }   
-    
+    PWM1->_3_LOAD = pwm_period;
+
+/* maybe not at this time
+    // enable all channels
+    PWM0->ENABLE =  PWM_ENABLE_PWM0EN |
+                    PWM_ENABLE_PWM1EN |
+                    PWM_ENABLE_PWM2EN |
+                    PWM_ENABLE_PWM3EN |
+                    PWM_ENABLE_PWM4EN |
+                    PWM_ENABLE_PWM5EN |
+                    PWM_ENABLE_PWM6EN |
+                    PWM_ENABLE_PWM7EN ;
+    PWM1->ENABLE =  PWM_ENABLE_PWM0EN |
+                    PWM_ENABLE_PWM1EN |
+                    PWM_ENABLE_PWM2EN |
+                    PWM_ENABLE_PWM3EN |
+                    PWM_ENABLE_PWM4EN |
+                    PWM_ENABLE_PWM5EN |
+                    PWM_ENABLE_PWM6EN |
+                    PWM_ENABLE_PWM7EN ;
+*/
 }
 
 void servos_doPosDegree(uint8_t posDegree[16]){
@@ -178,8 +205,3 @@ void servos_setDegree(uint8_t channel,float value){
     servos_setPos(channel,SERVO_MIN_POS+ (value/180)*(SERVO_MAX_POS-SERVO_MIN_POS));
     cur_pos[channel-1] = value;
 }
-
-
-
-
-
