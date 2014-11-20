@@ -4,6 +4,8 @@
 #include "CU_TM4C123.h"
 #include "uart.h"
 
+#define UART_IDX(uart)  (((uint32_t)uart - UART0_BASE) / sizeof(UART0_Type))
+
 void uart_int_off(UART0_Type *uart)
 {
     uart->IM &= ~(UART_IM_RXIM | UART_IM_RTIM);
@@ -19,8 +21,19 @@ void uart_int_on(UART0_Type *uart)
     Returns -1 if no init code is available  otherwise 0 for success
     Don't forget to implement the RX ISRs
 */
+static uint8_t __init[8] = {0};
 int uart_init(UART0_Type *uart, uint32_t baud)
 {
+    // check if module is already init
+    if (__init[UART_IDX(uart)])
+    {
+        return -1;
+    }
+    else
+    {
+        __init[UART_IDX(uart)] = 1;
+    }
+
     if (uart == UART0)
     {
         // UART0_RX = PA0
@@ -110,6 +123,13 @@ int uart_init(UART0_Type *uart, uint32_t baud)
     uart->CTL |= UART_CTL_UARTEN;
     
     return 0;
+}
+
+void uart_uninit(UART0_Type *uart)
+{
+    // disable uart
+    uart->CTL &= ~UART_CTL_UARTEN;
+    __init[UART_IDX(uart)] = 0;
 }
 
 uint8_t uart_sendbyte(UART0_Type *uart, uint8_t b)
