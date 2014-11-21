@@ -12,28 +12,30 @@ void UART2_Handler()
 { 
     int byte;
     COMM_ANS ans;
-    static uint8_t got_start, len;
+    static uint8_t got_start;
+    static int len;
     
     // read until the RX FIFO is empty
     while( EOF != (byte = uart_getbyte(COMM_UART)) )
-    {
+    {uart_sendbyte(UART0, byte);
         // check if we received a start byte
         if (!got_start)
         {
-            // if it's not a start byte
-            if ((uint8_t)byte != COMM_START)
-            {
-                // discard byte
-                continue;
-            }
-            else
+            // if it's the start byte
+            if ((uint8_t)byte == COMM_START)
             {
                 // wait for the length
                 while(EOF == (byte = uart_getbyte(COMM_UART)))
                     ;
-                len = (uint8_t)byte;
+                len = (uint8_t)byte; uart_sendbyte(UART0, byte);
                 got_start = 1;
-            }     
+            }
+            // otherwise we ignore the byte
+            else
+            {
+                // discard byte
+                continue;
+            }
         }
         // check if we've read all the bytes 
         else if( (len-- > 0) && (comm_buf_index < COMM_BUF_SZ) )
@@ -59,8 +61,20 @@ void UART2_Handler()
             }
             // reset index
             comm_buf_index = 0;
-            // reset got_start
-            got_start = 0;
+            // if the byte read was not a start byte
+            if ((uint8_t)byte != COMM_START)
+            {
+                // reset got_start
+                got_start = 0;
+            }
+            // if so, we wait for len
+            else
+            {
+                // wait for the length
+                while(EOF == (byte = uart_getbyte(COMM_UART)))
+                    ;
+                len = (uint8_t)byte; uart_sendbyte(UART0, byte);
+            }
         }
     }
 }

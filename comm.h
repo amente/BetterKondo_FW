@@ -18,8 +18,8 @@ typedef struct __COMM_ANS
 #define COMM_BUF_SZ         32
 
 #define COMM_CMD_ANS        0x80
-#define COMM_CMD_INFO       0
-#define COMM_CMD_SETPOS     1
+#define COMM_CMD_INFO       0x00
+#define COMM_CMD_SETPOS     0x01
 
 void comm_init(COMM_ANS (*cb)(uint8_t msg[], uint8_t len));
 
