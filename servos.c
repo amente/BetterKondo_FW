@@ -4,6 +4,7 @@
 #include "servos.h"
 
 uint8_t cur_pos[16];
+static uint32_t timer_load;
 
 static volatile uint32_t *ch_duty[16] =
 {
@@ -25,8 +26,31 @@ static volatile uint32_t *ch_duty[16] =
     &(PWM1->_3_CMPB),
 };
 
+static int8_t offsets[17] =
+{
+    0, // ch1
+    0,
+    0,
+    0,
+    0,
+    0, // ch6
+    0,
+    0,
+    0,
+    0,
+    0, // ch11
+    0,
+    0,
+    0,
+    0,
+    0,
+    0, // ch17
+};
+
 void servos_enable(uint8_t channel){
-    if(channel == 1 || channel == 2){
+    if(channel == 17){
+        TIMER2->CTL |= TIMER_CTL_TAEN;
+    }else if(channel == 1 || channel == 2){
         PWM1->ENABLE |= 1<<(channel-1);
     }else if(channel == 9 || channel == 10){
         PWM0->ENABLE |= 1<<((channel-1)%8);
@@ -38,7 +62,9 @@ void servos_enable(uint8_t channel){
 }
 
 void servos_disable(uint8_t channel){
-    if(channel == 1 || channel == 2){
+    if(channel == 17){
+        TIMER2->CTL |= TIMER_CTL_TAEN;
+    }else if(channel == 1 || channel == 2){
         PWM1->ENABLE &= ~(1<<(channel-1));
     }else if(channel == 9 || channel == 10){
         PWM0->ENABLE &= ~(1<<((channel-1)%8));
@@ -56,7 +82,7 @@ void servos_init(){
     gpio_init();
     
     // Enable clock to both PWM Modules
-    SYSCTL->RCGCPWM |= SYSCTL_RCGCPWM_R0 | SYSCTL_RCGCPWM_R0;
+    SYSCTL->RCGCPWM |= SYSCTL_RCGCPWM_R0 | SYSCTL_RCGCPWM_R1;
     // PWM clock is SycClk / 64
     SYSCTL->RCC |= SYSCTL_RCC_USEPWMDIV | SYSCTL_RCC_PWMDIV_64;
     // Enable clock to Timer 2
@@ -113,14 +139,16 @@ void servos_init(){
     TIMER2->TAMR = (TIMER2->TAMR & ~TIMER_TAMR_TACMR) |
                                     TIMER_TAMR_TAAMS  |
                                     TIMER_TAMR_TAMR_PERIOD;
-    //
-    TIMER2->TAPR = 4;
-    //
-    TIMER2->TAILR = 0xE200;
-    //
-    TIMER2->TAMATCHR = 12800;
-    //
-    TIMER2->CTL |= 1<<0;
+    // calculate the timer load value
+    timer_load = (SystemCoreClock / PWM_FREQ) & 0x00FFFFFF;
+    // calculate the prescaler
+    TIMER2->TAPR = timer_load >> 16;
+    // calculate bottom 16 bit of period
+    TIMER2->TAILR = timer_load;
+    // set duty to zero for now
+    TIMER2->TAPMR = TIMER2->TAMATCHR = 0;
+    // maybe don't enable timer yet
+    //TIMER2->CTL |= 1<<0;
     
     //Configure PWM Generators
     pwm_period = (SystemCoreClock / 64 / PWM_FREQ) - 1;
@@ -197,11 +225,22 @@ void servos_doPosDegree(uint8_t posDegree[16]){
     }     
 }
 
-void servos_setPos(uint8_t channel,uint16_t value){
-    *ch_duty[channel-1] = value;   
+void servos_setPos(uint8_t channel, uint16_t value)
+{
+    // check if it's a pwm channel
+    if (channel != 17)
+    {
+        *ch_duty[channel-1] = value;
+    }
+    // otherwise it's a timer channel
+    else
+    {
+        TIMER2->TAPMR    = (timer_load - value * 64) >> 16;
+        TIMER2->TAMATCHR = (timer_load - value * 64) & 0xFFFF;
+    }
 }
 
-void servos_setDegree(uint8_t channel,float value){
-    servos_setPos(channel,SERVO_MIN_POS+ (value/180)*(SERVO_MAX_POS-SERVO_MIN_POS));
-    cur_pos[channel-1] = value;
+void servos_setDegree(uint8_t channel, uint8_t deg){
+    servos_setPos(channel, SERVO_MIN_POS + (deg + offsets[channel-1]) * (SERVO_MAX_POS-SERVO_MIN_POS) / 180);
+    cur_pos[channel-1] = deg;
 }

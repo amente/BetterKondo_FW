@@ -22,7 +22,7 @@ void servos_doPosDegree(uint8_t posDegree[16]);
 void servos_enable(uint8_t channel);
 void servos_disable(uint8_t channel);
 void servos_setPos(uint8_t channel,uint16_t value);
-void servos_setDegree(uint8_t channel,float value);
+void servos_setDegree(uint8_t channel, uint8_t deg);
 void servos_setDegreeSmooth(uint8_t channel,float value,float increment);
 
 
