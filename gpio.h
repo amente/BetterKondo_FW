@@ -1,5 +1,5 @@
 #ifndef __GPIO_H
-#define _GPIO_H
+#define __GPIO_H
 
 #include <stdint.h>
 #include "CU_TM4C123.h"
