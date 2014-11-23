@@ -17,7 +17,7 @@ void UART2_Handler()
     
     // read until the RX FIFO is empty
     while( EOF != (byte = uart_getbyte(COMM_UART)) )
-    {uart_sendbyte(UART0, byte);
+    {
         // check if we received a start byte
         if (!got_start)
         {
@@ -27,7 +27,7 @@ void UART2_Handler()
                 // wait for the length
                 while(EOF == (byte = uart_getbyte(COMM_UART)))
                     ;
-                len = (uint8_t)byte; uart_sendbyte(UART0, byte);
+                len = (uint8_t)((byte > COMM_BUF_SZ) ? COMM_BUF_SZ : byte);
                 got_start = 1;
             }
             // otherwise we ignore the byte
@@ -37,44 +37,35 @@ void UART2_Handler()
                 continue;
             }
         }
-        // check if we've read all the bytes 
-        else if( (len-- > 0) && (comm_buf_index < COMM_BUF_SZ) )
+        // read len-1 bytes
+        else if (len-- > 1)
         {
             // save the byte
             comm_buf[comm_buf_index++] = (uint8_t)byte;
         }
+        // this should be the last byte
         else
         {
+            // save the last byte
+            comm_buf[comm_buf_index++] = (uint8_t)byte;
             // we are done reading
             if (comm_callback != NULL)
             {
-                ans = comm_callback(comm_buf, comm_buf_index + 1);
+                ans = comm_callback(comm_buf, comm_buf_index);
                 if (comm_buf[0] & COMM_CMD_ANS)
                 {
                     // send start byte
                     uart_sendbyte(COMM_UART, 0xFE);
                     // send len
-                    uart_sendbyte(COMM_UART, 0xFE);
+                    uart_sendbyte(COMM_UART, ans.len);
                     // send the rest of the answer
                     uart_sendbytes(COMM_UART, ans.msg, ans.len);
                 }
             }
             // reset index
             comm_buf_index = 0;
-            // if the byte read was not a start byte
-            if ((uint8_t)byte != COMM_START)
-            {
-                // reset got_start
-                got_start = 0;
-            }
-            // if so, we wait for len
-            else
-            {
-                // wait for the length
-                while(EOF == (byte = uart_getbyte(COMM_UART)))
-                    ;
-                len = (uint8_t)byte; uart_sendbyte(UART0, byte);
-            }
+            // reset got_start
+            got_start = 0;
         }
     }
 }
