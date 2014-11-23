@@ -1,22 +1,19 @@
-#include "i2c.h"
+#include "CU_TM4C123.h"            // CU_SYSC4906::Device:Startup
+
 #include <stdint.h>
 #include <stdio.h>
+#include "i2c.h"
 #include "servos.h"
 #include "uart.h"
 #include "util.h"
 #include "halfduplex_serial.h"
+#include "comm.h"
+
+#define VERSION 1.0
 
 extern GPIO_PIN GPIO_PINS[6][8];
 
 GPIO_PIN* PD0 = &(GPIO_PINS[3][0]);
-
-uint8_t readIndex = 0;
-uint8_t frame_start = 0xFF;
-#define RX_BUFF_SIZE  100
-uint8_t RX_BUFF[RX_BUFF_SIZE];
-extern uint8_t cur_pos[16];
-int uartRead;
-
 
 uint8_t mov_pos[][16] = {{89,173,173,101,88,115,112,75,103,68,129,90,82,0,0,82},
                           {89,86,171,101,88,115,112,75,103,68,129,90,82,0,91,89},
@@ -41,7 +38,7 @@ uint8_t mov_pos[][16] = {{89,173,173,101,88,115,112,75,103,68,129,90,82,0,0,82},
 
 
 
-
+/*
 void parseCmd(uint8_t start,uint8_t end){
     uint8_t len = end-start; 
     if(len == 3){
@@ -51,76 +48,61 @@ void parseCmd(uint8_t start,uint8_t end){
     }
     frame_start = 0xFF;
 }
+*/
 
-void UART0_Rx(){    
-     uartRead = uart_getbyte();     
-     if(uartRead != EOF){
-         RX_BUFF[readIndex] = uartRead;
-         if(RX_BUFF[readIndex]==0xFF){
-            frame_start = readIndex;            
-         }else if(RX_BUFF[readIndex] == 0xFE){
-            if(frame_start!=0xFF){
-                parseCmd(frame_start,readIndex);
-            }
-         }
-         readIndex++;
-         if(readIndex==RX_BUFF_SIZE){
-            readIndex = 0;
-         }        
-     }        
+void UART0_Handler()
+{
+    // empty the RX FIFO
+    while(!(UART0->FR & UART_FR_RXFE))
+        uart_sendbyte(UART2, UART0->DR);
+    // clear interrupt
+    UART0->ICR |= UART_ICR_RXIC | UART_ICR_RTIC;
 }
-int main(void){    
-    int i;
-    int j;
+
+COMM_ANS comm_callback(uint8_t msg[], uint8_t len)
+{
+    /* ISR IS CALLING THIS FUNC SO DON'T TAKE TOO LONG! */
     
-    gpio_init();
-    
-    halfdup_ser_init(HALFDUP_SER_BAUD_1200);
-    halfdup_ser_begin(PD0);     
-    while(1){
-        halfdup_ser_sendByte(0x88);  
-        for(i=0;i<0xFFFF;i++);
+    static COMM_ANS ans;
+    ans.msg = msg;
+    ans.len = len;
+uart_sendbytes(COMM_UART, msg, len);
+uart_sendbytes(UART2, msg, len);
+    // parse the msg
+    switch (msg[0] & ~(COMM_CMD_ANS))
+    {
+        case COMM_CMD_SETPOS:
+            servos_setDegree(msg[1], msg[2]);
+            break;
+        default:
+            ;
     }
-       
-    /*uart_init(9600);    
+    
+    // answer
+    return ans;
+}
+
+int main(void){
+    int i, j;
+    uart_init(UART0, 9600);
+    uart_int_on(UART0);
+    
+    comm_init(comm_callback);
+    
     servos_init();
     
-    
-    servos_doPosDegree(mov_pos[0]);  
-    delay_ms(200);
-    
-    servos_doPosDegree(mov_pos[1]);  
-    delay_ms(200);
-    servos_doPosDegree(mov_pos[2]);  
-    delay_ms(200);
-    servos_doPosDegree(mov_pos[3]);  
-    delay_ms(200);
-    servos_doPosDegree(mov_pos[4]);  
-    delay_ms(200);
-
-    while(1)
+    for(i=1; i<=17; i++)
     {
-        for(i=1;i<=6;i++){       
-            servos_doPosDegree(mov_pos[i]);
-            delay_ms(50);
-        }
-        for(i=5;i>1;i--){       
-            servos_doPosDegree(mov_pos[i]);
-            delay_ms(50);
-        }
+        servos_enable(i);
+        //servos_setDegree(i, mov_pos[0][i-1]);
     }
     
-    
-    
-    while(1){/*
-        for(i = SERVO_MIN_POS; i<SERVO_MAX_POS; i++){
-            servos_setPos(3,i);
-            delay_ms(20);
+    while(1)
+    {
+        for (i=0; i<=180; i++)
+        {
+            //servos_setDegree(17, (float)i);
+            //for(j=0; j<0xFFFF; j++);
         }
-        
-        for(i = SERVO_MAX_POS; i<SERVO_MIN_POS; i--){
-            servos_setPos(3,i);
-            delay_ms(20);
-        }     
-    }*/
+    }
 }
