@@ -145,8 +145,9 @@ void servos_init(){
     TIMER2->TAPR = timer_load >> 16;
     // calculate bottom 16 bit of period
     TIMER2->TAILR = timer_load;
-    // set duty to zero for now
-    TIMER2->TAPMR = TIMER2->TAMATCHR = 0;
+    // set match and prescale match to make the output low
+    TIMER2->TAPMR    = (timer_load-1) >> 16;
+    TIMER2->TAMATCHR = (timer_load-1) & 0xFFFF;
     // maybe don't enable timer yet
     //TIMER2->CTL |= 1<<0;
     
