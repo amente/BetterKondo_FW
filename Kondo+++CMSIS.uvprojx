@@ -14,8 +14,8 @@
         <TargetCommonOption>
           <Device>TM4C123GH6PM</Device>
           <Vendor>Texas Instruments</Vendor>
-          <PackID>Keil.TM4C_DFP.1.0.0</PackID>
-          <PackURL>http://www.keil.com/pack/</PackURL>
+          <PackID>CU_SYSC4906.LabF14_DFP.1.0.7</PackID>
+          <PackURL>http://www.sce.carleton.ca</PackURL>
           <Cpu>IROM(0x00000000,0x040000) IRAM(0x20000000,0x008000) CPUTYPE("Cortex-M4") FPU2 CLOCK(12000000) ELITTLE</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
           <StartupFile></StartupFile>
@@ -443,6 +443,16 @@
               <FileType>1</FileType>
               <FilePath>.\util.c</FilePath>
             </File>
+            <File>
+              <FileName>comm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\comm.c</FilePath>
+            </File>
+            <File>
+              <FileName>gpio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\gpio.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -450,23 +460,6 @@
         </Group>
         <Group>
           <GroupName>::Device</GroupName>
-          <Files>
-            <File>
-              <FileName>CU_system_TM4C123.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>RTE\Device\TM4C123GH6PM\CU_system_TM4C123.c</FilePath>
-            </File>
-            <File>
-              <FileName>CU_system_TM4C123.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>RTE\Device\TM4C123GH6PM\CU_system_TM4C123.h</FilePath>
-            </File>
-            <File>
-              <FileName>startup_TM4C123.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>RTE\Device\TM4C123GH6PM\startup_TM4C123.s</FilePath>
-            </File>
-          </Files>
         </Group>
       </Groups>
     </Target>

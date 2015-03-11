@@ -91,7 +91,7 @@ void servos_init(){
     // Configure alternate functions for PWM pins
     // PORT A pins: PA6 and PA7
     GPIOA->AFSEL |= 1<<6 | 1<<7;
-    GPIOA->PCTL  |= GPIO_PCTL_PA6_M1PWM2 | GPIO_PCTL_PA6_M1PWM2;
+    GPIOA->PCTL  |= GPIO_PCTL_PA6_M1PWM2 | GPIO_PCTL_PA7_M1PWM3;
     GPIOA->DEN   |= 1<<6 | 1<<7;
     // PORT B pins: PB0, PB4, PB5, PB6, PB7
     GPIOB->AFSEL |= 1<<0 | 1<<4 | 1<<5 | 1<<6 | 1<<7;
